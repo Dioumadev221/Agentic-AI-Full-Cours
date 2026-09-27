@@ -1,0 +1,17 @@
+[project]
+name = "agentic-ai-full-course"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Dioumadev221", email = "dioumadione004@gmail.com" }
+]
+requires-python = ">=3.13"
+dependencies = []
+
+[project.scripts]
+agentic-ai-full-course = "agentic_ai_full_course:main"
+
+[build-system]
+requires = ["uv_build>=0.12.13,<0.13.0"]
+build-backend = "uv_build"
