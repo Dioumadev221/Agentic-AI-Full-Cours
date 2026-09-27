@@ -7,7 +7,16 @@ authors = [
     { name = "Dioumadev221", email = "dioumadione004@gmail.com" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "certifi>=2026.7.22",
+    "langchain>=1.4.2",
+    "langchain-google-genai>=4.4.0",
+    "langchain-openai>=1.6.6",
+    "langchain-tavily>=0.2.18",
+    "python-dotenv>=1.2.3",
+    "requests>=2.34.2",
+    "streamlit>=1.64.0",
+]
 
 [project.scripts]
 agentic-ai-full-course = "agentic_ai_full_course:main"
