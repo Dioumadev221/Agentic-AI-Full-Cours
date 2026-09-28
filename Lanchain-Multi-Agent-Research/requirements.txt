@@ -1,0 +1,23 @@
+# LLM + LangChain ecosystem
+langchain~=1.4
+langchain-core~=1.6
+langchain-openai~=1.6
+langgraph~=1.2
+pydantic~=2.13
+
+# Search
+tavily-python~=0.8
+
+# Web scraping
+requests~=2.34
+beautifulsoup4~=4.15
+trafilatura~=2.2
+readability-lxml~=0.9
+lxml~=6.1
+lxml_html_clean~=0.4
+
+# Environment variables
+python-dotenv~=1.2
+
+# Pretty console output
+rich~=15.0
