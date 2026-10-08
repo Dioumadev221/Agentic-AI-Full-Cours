@@ -1,4 +1,4 @@
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.graph import MessagesState, StateGraph, START, END
 from langgraph.prebuilt import ToolNode
 
@@ -30,55 +30,82 @@ from .tools import search_local_knowledge
 
 
 
+MAX_TOOL_CALLS = 5
+MAX_REWRITES = 2
 
-# 1. On déclare les tools et on les lie au modèle
 tools = [search_local_knowledge]
 model_with_tools = model.bind_tools(tools)
 
 
-# 2. Nœud agent : le LLM peut répondre OU demander un tool
 def agent(state: MessagesState):
     reponse = model_with_tools.invoke(state["messages"])
     return {"messages": [reponse]}
 
 
-# 3. Routeur : après l'agent, où va-t-on ?
-MAX_TOOL_CALLS = 5
+def rewrite_question(state: MessagesState):
+    """Reformule la question initiale pour améliorer la prochaine recherche."""
+    question = state["messages"][0].content
+    prompt = (
+        "Reformule la question suivante pour améliorer une recherche "
+        "sémantique. Garde le sens, change la formulation.\n\n"
+        f"Question : {question}\n\n"
+        "Nouvelle question :"
+    )
+    nouvelle = model.invoke([HumanMessage(prompt)]).content.strip()
+    return {"messages": [HumanMessage(content=nouvelle)]}
+
+
 
 def route_after_agent(state: MessagesState):
-    dernier = state["messages"][-1]
-
-    #Garde-fou : on compte combien de ToolMessage sont déjà dans le state
-    nb_tool_msgs = sum(
-        1 for m in state["messages"] if m.type == "tool"
-    )
+    nb_tool_msgs = sum(1 for m in state["messages"] if m.type == "tool")
     if nb_tool_msgs >= MAX_TOOL_CALLS:
-        print(f"Limite {MAX_TOOL_CALLS} atteinte, on force l'arrêt.")
         return END
 
-    # Logique normale
+    dernier = state["messages"][-1]
     if getattr(dernier, "tool_calls", None):
         return "tools"
     return END
 
 
-# 4. Construction du graphe
-builder = StateGraph(MessagesState)
 
+def route_after_tools(state: MessagesState):
+    """Juge silencieusement puis route : SUFFICIENT → agent | INSUFFICIENT → rewrite."""
+    nb_rewrites = sum(
+        1 for m in state["messages"]
+        if m.type == "human" and m is not state["messages"][0]
+    )
+    if nb_rewrites >= MAX_REWRITES:
+        return "agent"
+
+    prompt = (
+        "Tu es un évaluateur. Regarde la conversation ci-dessus et dis si "
+        "les informations collectées sont SUFFISANTES pour répondre à la "
+        "question initiale.\n\n"
+        "Réponds UNIQUEMENT par un mot : SUFFICIENT ou INSUFFICIENT."
+    )
+    verdict = model.invoke(state["messages"] + [HumanMessage(prompt)]).content.strip().upper()
+    print(f"🔍 verdict={verdict} | rewrites={nb_rewrites}")
+    if "INSUFFICIENT" in verdict:
+        return "rewrite"
+    return "agent"
+
+
+
+builder = StateGraph(MessagesState)
 builder.add_node("agent", agent)
 builder.add_node("tools", ToolNode(tools))
+builder.add_node("rewrite", rewrite_question)
 
 builder.add_edge(START, "agent")
 builder.add_conditional_edges("agent", route_after_agent, ["tools", END])
-builder.add_edge("tools", "agent")          # ⬅ la boucle
+builder.add_conditional_edges("tools", route_after_tools, ["agent", "rewrite"])
+builder.add_edge("rewrite", "agent")
 
 graph = builder.compile()
 
 
-# 5. Test
 if __name__ == "__main__":
     result = graph.invoke({
         "messages": [HumanMessage("Quels sont les concepts principaux de LangGraph ?")]
     })
-
     print(result["messages"][-1].content)
