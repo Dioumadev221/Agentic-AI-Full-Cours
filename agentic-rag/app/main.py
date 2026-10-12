@@ -1,9 +1,9 @@
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langgraph.graph import MessagesState, StateGraph, START, END
 from langgraph.prebuilt import ToolNode
 
 from .model import model
-from .tools import search_local_knowledge
+from .tools import search_local_knowledge, web_search, scrape_url
 # def agent(state: MessagesState):
 #     """Appelle le LLM avec les messages actuels."""
 #     reponse = model.invoke(state["messages"])
@@ -33,12 +33,23 @@ from .tools import search_local_knowledge
 MAX_TOOL_CALLS = 5
 MAX_REWRITES = 2
 
-tools = [search_local_knowledge]
+tools = [search_local_knowledge, web_search, scrape_url]
 model_with_tools = model.bind_tools(tools)
+
+AGENT_SYSTEM = """Tu es un agent de recherche.
+
+WORKFLOW OBLIGATOIRE :
+1. Si la question nécessite des infos à jour → appelle `web_search`.
+2. Si `web_search` te renvoie des URLs → appelle `scrape_url` sur les 2 URLs les plus pertinentes.
+3. Utilise le contenu scrapé pour rédiger ta réponse finale.
+
+RÈGLE : Ne réponds JAMAIS uniquement à partir des titres/URLs.
+Tu DOIS avoir lu le contenu via scrape_url avant de répondre."""
 
 
 def agent(state: MessagesState):
-    reponse = model_with_tools.invoke(state["messages"])
+    messages = [SystemMessage(content=AGENT_SYSTEM)] + state["messages"]
+    reponse = model_with_tools.invoke(messages)
     return {"messages": [reponse]}
 
 
@@ -109,3 +120,7 @@ if __name__ == "__main__":
         "messages": [HumanMessage("Quels sont les concepts principaux de LangGraph ?")]
     })
     print(result["messages"][-1].content)
+    for m in result["messages"]:
+        if getattr(m, "tool_calls", None):
+            for tc in m.tool_calls:
+                print(f"🔧 {tc['name']}({tc['args']})")
