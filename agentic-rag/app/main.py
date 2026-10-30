@@ -47,10 +47,29 @@ RÈGLE : Ne réponds JAMAIS uniquement à partir des titres/URLs.
 Tu DOIS avoir lu le contenu via scrape_url avant de répondre."""
 
 
+ANSWER_PROMPT = """À partir de la question et des informations collectées 
+ci-dessus, rédige une réponse claire, structurée et sourcée à la question.
+
+Question initiale : {question}
+
+Réponse :"""
+
 def agent(state: MessagesState):
     messages = [SystemMessage(content=AGENT_SYSTEM)] + state["messages"]
     reponse = model_with_tools.invoke(messages)
     return {"messages": [reponse]}
+
+
+
+def generate_answer(state: MessagesState):
+    """Rédige la réponse finale à partir du contexte accumulé."""
+    question = state["messages"][0].content
+    messages = state["messages"] + [
+        HumanMessage(content=ANSWER_PROMPT.format(question=question))
+    ]
+    reponse = model.invoke(messages)
+    return {"messages": [reponse]}
+
 
 
 def rewrite_question(state: MessagesState):
