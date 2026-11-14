@@ -25,7 +25,7 @@ agent = create_agent(
     middleware=[
         FilesystemMiddleware(backend=backend),
         MemoryMiddleware(backend=backend, sources=["/AGENTS.md"]),
-        ToolCallLimitMiddleware(run_limit=4),   # stoppe les boucles d'erreurs
+        ToolCallLimitMiddleware(run_limit=4),
     ],
     checkpointer=InMemorySaver(),
 )
@@ -45,26 +45,7 @@ def voir_etat(thread):
     print()
 
 
-def trace(thread):
-    print(f"=== TRACE du thread {thread} ===")
-    cfg = {"configurable": {"thread_id": thread}}
-    for m in agent.get_state(cfg).values["messages"]:
-        if getattr(m, "tool_calls", None):
-            for tc in m.tool_calls:
-                print(f"  [appel] {tc['name']} {tc['args']}")
-        elif m.type == "tool":
-            print(f"  [resultat] {str(m.content)[:150]}")
-        else:
-            print(f"  [{m.type}] {str(m.content)[:200]}")
-    print()
 
-
-# =====================================================================
-# PARTIE 1 : l'etat garde-t-il une ancienne copie ? (sans le modele)
-# =====================================================================
-print("##### PARTIE 1 : memory_contents et modification du fichier #####\n")
-
-ecrire_memoire("Langue : aucune preference")
 question = "Selon ta memoire, quelle langue dois-tu utiliser ? Reponds en une phrase."
 
 print(">> Thread A, message 1")
@@ -83,9 +64,6 @@ print(">> Thread B, nouvelle conversation")
 parler(question, "B")
 voir_etat("B")
 
-# =====================================================================
-# PARTIE 2 : le modele ecrit lui-meme avec edit_file
-# =====================================================================
 print("##### PARTIE 2 : le modele ecrit avec edit_file #####\n")
 
 ecrire_memoire("AUCUNE_PREFERENCE")
@@ -95,11 +73,7 @@ parler(
     "Copie ces valeurs sans les modifier.",
     "C",
 )
-trace("C")
+
 
 print("=== CONTENU FINAL DE AGENTS.md ===")
 print(fichier_memoire.read_text(encoding="utf-8"))
-
-print(">> Thread D, nouvelle conversation")
-parler("Comment je m'appelle ?", "D")
-voir_etat("D")
