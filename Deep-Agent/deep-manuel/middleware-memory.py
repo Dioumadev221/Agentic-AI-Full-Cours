@@ -77,3 +77,4 @@ parler(
 
 print("=== CONTENU FINAL DE AGENTS.md ===")
 print(fichier_memoire.read_text(encoding="utf-8"))
+
